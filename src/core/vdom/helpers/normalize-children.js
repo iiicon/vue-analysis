@@ -49,7 +49,7 @@ function normalizeArrayChildren (children: any, nestedIndex?: string): Array<VNo
     lastIndex = res.length - 1
     last = res[lastIndex]
     //  nested
-    if (Array.isArray(c)) {
+    if (Array.isArray(c)) { // 如果是Array 递归调用，返回 VNode list
       if (c.length > 0) {
         c = normalizeArrayChildren(c, `${nestedIndex || ''}_${i}`)
         // merge adjacent text nodes
@@ -59,7 +59,7 @@ function normalizeArrayChildren (children: any, nestedIndex?: string): Array<VNo
         }
         res.push.apply(res, c)
       }
-    } else if (isPrimitive(c)) {
+    } else if (isPrimitive(c)) { // 基础类型 两个节点都是text要合并一个
       if (isTextNode(last)) {
         // merge adjacent text nodes
         // this is necessary for SSR hydration because text nodes are
@@ -69,8 +69,8 @@ function normalizeArrayChildren (children: any, nestedIndex?: string): Array<VNo
         // convert primitive to vnode
         res.push(createTextVNode(c))
       }
-    } else {
-      if (isTextNode(c) && isTextNode(last)) {
+    } else { // 否则就是 VNode 了
+      if (isTextNode(c) && isTextNode(last)) { // textVnode
         // merge adjacent text nodes
         res[lastIndex] = createTextVNode(last.text + c.text)
       } else {

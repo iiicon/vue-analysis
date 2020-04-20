@@ -84,7 +84,7 @@ export function _createElement (
     typeof children[0] === 'function'
   ) {
     data = data || {}
-    data.scopedSlots = { default: children[0] }
+    data.scopedSlots = { default: children[0] } // TODO
     children.length = 0
   }
   if (normalizationType === ALWAYS_NORMALIZE) {
