@@ -71,3 +71,8 @@ createComponent
 我们在调用 `_render` 函数的时候，会调用 `$createElement` 方法，第一个参数可以接受一个对象`options`，
 比如我们`export`的`vue`组件，vue 在内部会调用 `_createElement` 函数，`options`会作为`_createElement`的第二个参数`tag`传入，
 如果是 `string` 的直接new VNode，否则就调用 `createComponent`，在这个函数里 vue会构造子类构造函数(调用Vue.extend)，安装组件钩子函数，new VNode
+
+
+##
+
+-  vm 实例加载 render 方法的时机
