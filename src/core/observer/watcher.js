@@ -103,7 +103,6 @@ export default class Watcher {
     let value
     const vm = this.vm
     try {
-      // TODO 解读参数
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {

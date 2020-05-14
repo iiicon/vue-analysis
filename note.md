@@ -88,3 +88,4 @@ patch
 
 - 组件 vnode 有 data
 - 子组件的 render 挂载的时机
+-  vm 实例加载 render 方法的时机
