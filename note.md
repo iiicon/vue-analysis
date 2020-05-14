@@ -79,13 +79,71 @@ patch
 接着会`vm.$mount`方法，这个过程就是和之前一样先 `_render` 出渲染 vnode（中间用` vm.$vnode=_parentVnode``vnode.parent=_parentVnode `），再`_update`进行 patch，
 在这个过程，`vm._vnode=vnode`,而且吧 vm 赋值给全局的 activeInstance,还要保存 parent children 的关系等，现在我们的 vnode（App）就是一个渲染 vnode，根是#app 的 div，
 接下来在 patch 的过程中就不会再 `createComponent` 返回，会执行`nodeOps.createElement` 创建一个 dom 元素
-往下执行会执行 `createChildren` 递归调用 `createElm` 去 patch，当执行完子组件的 children子元素 后，就会执行子元素 insert 函数，由于没有parentElm，所以什么都不会执行，
+往下执行会执行 `createChildren` 递归调用 `createElm` 去 patch，当执行完子组件的 children 子元素 后，就会执行子元素 insert 函数，由于没有 parentElm，所以什么都不会执行，
 只是把 dom 保存在了 vnode.elm, `patch` 函数执行完毕后返回 vnode.elm, 到此子组件的挂载就结束了
-回到了 `createComponent` 的init方法，执行 `initComponent` 方法 `vnode.elm = vnode.componentInstance.$el` 也就是占位符vnode.elm 保存了
-我们创建的dom元素，在这里是有parentElm的，就是body，执行插入操作，组件渲染完毕
+回到了 `createComponent` 的 init 方法，执行 `initComponent` 方法 `vnode.elm = vnode.componentInstance.$el` 也就是占位符 vnode.elm 保存了
+我们创建的 dom 元素，在这里是有 parentElm 的，就是 body，执行插入操作，组件渲染完毕
+
+## 配置合并
+
+通过分析，我们知道 new Vue 的过程有两种场景，一种是我们外部代码主动调用 `new Vue(options)` 实例化一个 Vue 对象，另一种就是组件内部通过
+`new Vue(options)` 实例化子组件，无论哪种场景，都会执行 `this._init(options)`，他首先就会执行一个 mergeOptions 的逻辑
+
+```flow js
+export function mergeOptions(
+  parent: Object,
+  child: Object,
+  vm?: Component
+): Object {
+  if (process.env.NODE_ENV !== "production") {
+    checkComponents(child);
+  }
+
+  if (typeof child === "function") {
+    child = child.options;
+  }
+
+  normalizeProps(child, vm);
+  normalizeInject(child, vm);
+  normalizeDirectives(child);
+  const extendsFrom = child.extends;
+  if (extendsFrom) {
+    parent = mergeOptions(parent, extendsFrom, vm);
+  }
+  if (child.mixins) {
+    for (let i = 0, l = child.mixins.length; i < l; i++) {
+      parent = mergeOptions(parent, child.mixins[i], vm);
+    }
+  }
+  const options = {};
+  let key;
+  for (key in parent) {
+    mergeField(key);
+  }
+  for (key in child) {
+    if (!hasOwn(parent, key)) {
+      mergeField(key);
+    }
+  }
+  function mergeField(key) {
+    const strat = strats[key] || defaultStrat;
+    options[key] = strat(parent[key], child[key], vm, key);
+  }
+  return options;
+}
+```
+
+外部调用 `new Vue` 会把传入的 options 和 Vue 的 options 做一层合并
+子组件在实例化的时候会用 `Vue.extend` 生成子类构造器 Sub, Sub 的 options（比如刚开始实例化 render 的 App 组件） 会和 Vue 的 options 做一层合并
+`this._init` 会执行 `initInternalCompoennt` 方法，`Object.create(Sub.options)` 赋值给 vm.\$options, 保存`parent和_parentVnode`
+
+关于合并策略函数 `mergeField` 会根据不同的 key 去合并
+比如 `data` 会深度合并，`hooks` 会返回数组，`methods props computed inject` 会覆盖等等，具体 key 具体分析
+
+值得一提的是 如果有 mixins 和 extends 属性，则会先和 Vue 进行合并，也就是合并到 Vue 构造器上
 
 ## 问题
 
 - 组件 vnode 有 data
 - 子组件的 render 挂载的时机
--  vm 实例加载 render 方法的时机
+- vm 实例加载 render 方法的时机
