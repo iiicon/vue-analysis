@@ -197,37 +197,39 @@ function invokeInsertHook(vnode, queue, initial) {
 函数中，有 before 就会调用 `watcher.before()`
 
 ```flow js
-function flushSchedulerQueue () {
+function flushSchedulerQueue() {
+  // ...
+  if (watcher.before) {
+    watcher.before();
+  }
   // ...
 }
-if (watcher.before) {
-  watcher.before()
-}
-// ...
-}
 ```
+
 `updated` 钩子是在更新 `watchers` 的时候执行
 
 ```flow js
-function callUpdatedHooks (queue) {
-  let i = queue.length
+function callUpdatedHooks(queue) {
+  let i = queue.length;
   while (i--) {
-    const watcher = queue[i]
-    const vm = watcher.vm
+    const watcher = queue[i];
+    const vm = watcher.vm;
     if (vm._watcher === watcher && vm._isMounted && !vm._isDestroyed) {
-      callHook(vm, 'updated')
+      callHook(vm, "updated");
     }
   }
 }
 ```
 
 ### beforeDestroy 和 destroyed
+
 他们都是在 `$destroy` 函数中执行
 `beforeDestroy` 在函数刚开始调用
 执行完 `vm.__patch__(vm._vnode, null)` 就会调用 `destroyed` 钩子函数，然后卸载事件等一系列逻辑
 
 ### activated 和 deactivated
-与keep-alive相关
+
+与 keep-alive 相关
 
 ## 问题
 
@@ -238,3 +240,5 @@ function callUpdatedHooks (queue) {
 - 子组件的 render 挂载的时机
 - vm 实例加载 render 方法的时机
 - 递归 patch insert 执行 insertHook
+- render 和 lifecycle 顺序
+- 子组件quene insert和父组件 顺序

@@ -221,7 +221,7 @@ export function createPatchFunction (backend) {
       // in that case we can just return the element and be done.
       if (isDef(vnode.componentInstance)) {
         initComponent(vnode, insertedVnodeQueue)
-        // TODO parentElm在不同阶段分别是什么
+        // TODO parentElm在不同阶段分别是什么，这里的vnode 是占位符vnode，parentElm就是父节点
         insert(parentElm, vnode.elm, refElm)
         if (isTrue(isReactivated)) {
           reactivateComponent(vnode, insertedVnodeQueue, parentElm, refElm)

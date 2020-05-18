@@ -39,7 +39,7 @@ function createOnceHandler (event, fn) {
   }
 }
 
-export function updateComponentListeners (
+export function  updateComponentListeners (
   vm: Component,
   listeners: Object,
   oldListeners: ?Object
