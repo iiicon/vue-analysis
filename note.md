@@ -142,8 +142,99 @@ export function mergeOptions(
 
 值得一提的是 如果有 mixins 和 extends 属性，则会先和 Vue 进行合并，也就是合并到 Vue 构造器上
 
+## 生命周期
+
+### beforeCreate 和 created
+
+```flow js
+Vue.prototype._init = function(options?: Object) {
+  // ...
+  initLifecycle(vm);
+  initEvents(vm);
+  initRender(vm);
+  callHook(vm, "beforeCreate");
+  initInjections(vm); // resolve injections before data/props
+  initState(vm); // 初始化 props、data、methods、watch、computed 等属性
+  initProvide(vm); // resolve provide after data/props
+  callHook(vm, "created");
+  // ...
+};
+```
+
+### beforeMount 和 mounted
+
+beforeMount 是在 dom 挂载之前，他的调用时机是在 mountComponent 函数中，在渲染 vnode 之前
+mounted 是分两种情况，`new Vue` 的时候是在 `mountComponent` 函数中
+
+```flow js
+if (vm.$vnode == null) {
+  vm._isMounted = true;
+  callHook(vm, "mounted");
+}
+```
+
+子组件是在 patch 的时候调用 `invokeInsertHook` 函数
+
+```flow js
+function invokeInsertHook(vnode, queue, initial) {
+  // delay insert hooks for component root nodes, invoke them after the
+  // element is really inserted
+  if (isTrue(initial) && isDef(vnode.parent)) {
+    vnode.parent.data.pendingInsert = queue;
+  } else {
+    for (let i = 0; i < queue.length; ++i) {
+      queue[i].data.hook.insert(queue[i]);
+    }
+  }
+}
+```
+
+挨个执行子组件 `vnode.data.hook.insert()`，这个函数执行 `callHook('mounted')`
+
+### beforeUpdate 和 updated
+
+`beforeUpdate` 是作为 new Watcher 的参数传入的，在 `scheduler.js` 的 `flushSchedulerQueue`
+函数中，有 before 就会调用 `watcher.before()`
+
+```flow js
+function flushSchedulerQueue () {
+  // ...
+}
+if (watcher.before) {
+  watcher.before()
+}
+// ...
+}
+```
+`updated` 钩子是在更新 `watchers` 的时候执行
+
+```flow js
+function callUpdatedHooks (queue) {
+  let i = queue.length
+  while (i--) {
+    const watcher = queue[i]
+    const vm = watcher.vm
+    if (vm._watcher === watcher && vm._isMounted && !vm._isDestroyed) {
+      callHook(vm, 'updated')
+    }
+  }
+}
+```
+
+### beforeDestroy 和 destroyed
+他们都是在 `$destroy` 函数中执行
+`beforeDestroy` 在函数刚开始调用
+执行完 `vm.__patch__(vm._vnode, null)` 就会调用 `destroyed` 钩子函数，然后卸载事件等一系列逻辑
+
+### activated 和 deactivated
+与keep-alive相关
+
 ## 问题
 
+- vm 实例加载 render 方法的时机
+- watch 和 method 中修改相同属性
+- **vue 组件需要一个根**
 - 组件 vnode 有 data
 - 子组件的 render 挂载的时机
 - vm 实例加载 render 方法的时机
+- 递归 patch insert 执行 insertHook
