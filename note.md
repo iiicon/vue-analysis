@@ -241,4 +241,7 @@ function callUpdatedHooks(queue) {
 - vm 实例加载 render 方法的时机
 - 递归 patch insert 执行 insertHook
 - render 和 lifecycle 顺序
-- 子组件quene insert和父组件 顺序
+  先执行 initLifecycle 会执行\$mount,进而执行\_render
+- 子组件 `quene` `insert` 和父组件
+  顺序(只有他是 `componentvnode` 才会 push 到 `quene`) 渲染 node 和组件 vnode 就是
+  同一个组件
