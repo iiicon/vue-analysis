@@ -252,6 +252,58 @@ function callUpdatedHooks(queue) {
 在 `_creatElement` `resovleAssets` 的时候，就能在 `options.components` 上获取到当前 component 和局部注册的 component，返回相应的构造器
 接着在 `createComponent` 的时候返回对应 vnode
 
+## 异步组件
+
+### 工厂函数
+
+```flow js
+Vue.component("async-example", function(resolve, reject) {
+  // 这个特殊的 require 语法告诉 webpack
+  // 自动将编译后的代码分割成不同的块，
+  // 这些块将通过 Ajax 请求自动下载。
+  require(["./my-async-component"], resolve);
+});
+```
+
+我们在调用 `_createElemt` 执行 `createComponent` 的时候，如果 Ctor 没有 cid，就会执行
+`resolveAsyncComponent(factory, baseCtor)` 生成对应的组件构造器
+resolveAsyncComponent 函数刚开始的时候，执行`const res = factory(resolve, reject)`
+并返回 undefined，会生成 `CommetVnode`，进而 render patch 成一个注释节点
+
+当 factory 执行，获取到异步组件执行回调调用 `resolve` 时，会把生成的构造器赋值给`factory.resolved`,
+同时执行 `forceRender(true)`,`$forceRender` 会执行 `_watcher` 的 get 方法，进而执行 `_render` 再次调用 `resolveAsyncComponent`
+这次进来就有 `factory.resolve`, 他就是我们返回的组件构造器
+
+### promise
+
+```flow js
+// 动态 import 返回 promise
+Vue.component("async-example", () => import("./my-async-component"));
+```
+webpack 2+ 支持了异步加载的语法糖：`() => import('./my-async-component')`，会在打包的时候单独打包成一个文件
+promise 的用法就和工厂函数基本类似，我们在调用 `resolveAsyncComponent(factory, baseCtor)` 的时候
+如果factory返回的res是promise，我们就会增加then方法 `res.then(resolve, reject)`，这样当文件加载完成就会
+调用 `resolve` 方法，剩下的逻辑就和工厂函数一样
+
+### 高级异步组件
+通过配置，可以支持一些 laoding 和 error
+
+```flow js
+const AsyncComp = () => ({
+  // 需要加载的组件。应当是一个 Promise
+  component: import('./MyComp.vue'),
+  // 加载中应当渲染的组件
+  loading: LoadingComp,
+  // 出错时渲染的组件
+  error: ErrorComp,
+  // 渲染加载中组件前的等待时间。默认：200ms。
+  delay: 200,
+  // 最长等待时间。超出此时间则渲染错误组件。默认：Infinity
+  timeout: 3000
+})
+Vue.component('async-example', AsyncComp)
+```
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
