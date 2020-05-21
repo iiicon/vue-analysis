@@ -231,6 +231,27 @@ function callUpdatedHooks(queue) {
 
 与 keep-alive 相关
 
+## 组件注册
+
+### 全局注册
+
+使用 `Vue.component('my-component', options)` 注册，
+通过 `Vue.extend(options)` 返回一个组件的 `'my-component'` 构造器 X，
+`X.options = mergeOptions(Super.options,extendOptions)`，
+通过`this.options[type + 's'][id] = definition` 挂载到 `Vue.options.components` 上，
+
+在 `new Vue` 执行 `this._init` 的时候会执行 `mergeOptions`, 把 `Vue.options options` 合并到 `vm.$options` 上,
+在 `_creatElement` `resovleAssets` 的时候，就能在 `components.__proto__` 上找到 `my-component` 返回构造器，
+接着在 `createComponent` 的时候返回对应 vnode
+
+### 局部注册
+
+在创建组件 Ctor 执行`Vue.extend` 的时候 `mergeOptions(Super.options, extendOptions)` 把 Vue.options 和组件 options 合并到 Sub.options
+到子组件 `_init` 的时候，会执行 `initInternalComponent` 不会走`mergeOptions` 的逻辑，
+通过 `vm.$options = Object.create(Sub.options)` 扩展到子 vm 原型上，
+在 `_creatElement` `resovleAssets` 的时候，就能在 `options.components` 上获取到当前 component 和局部注册的 component，返回相应的构造器
+接着在 `createComponent` 的时候返回对应 vnode
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
