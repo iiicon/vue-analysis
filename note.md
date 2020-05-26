@@ -231,6 +231,19 @@ function callUpdatedHooks(queue) {
 
 与 keep-alive 相关
 
+## 响应式对象
+Vue的响应式对象就是给对象添加一个 `enumbealbe = false` 的 `__ob__` 属性对象
+
+- `initState` 的时候执行 `initProps initData initWatch initMethods initComputed`
+- `initData` 做两件事，通过 `proxy` 方法，把 `vm._data` 上的属性代理到 `vm` 上, 另一个就是用
+    `observe` 方法观察整个 data 的变化，把data变成响应式的，添加 `__ob__` 属性
+- `initProps` 也是做两件事，通过 `defineReactive` 把 `_props` 上的属性值变成响应式， 通过 `vm._props.xxx` 
+    访问到定义 props 中对应的属性, 另一个通过 `proxy` 方法，把 `vm._props` 上的属性代理到 `vm` 上 
+
+> `proxy` 代理的作用是把 props 和 data 上的属性代理到 vm 实例上
+> `observe` 函数的功能就是用来监测数据的变化
+> `Observer` 是一个类，它的作用是给对象的属性添加 getter 和 setter，用于依赖收集和派发更新
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
@@ -245,3 +258,5 @@ function callUpdatedHooks(queue) {
 - 子组件 `quene` `insert` 和父组件
   顺序(只有他是 `componentvnode` 才会 push 到 `quene`) 渲染 node 和组件 vnode 就是
   同一个组件
+- 各组件vnode之间的关系
+- 有了 `resolveAsset` 子组件的 `Vue.extend` 就走不到了？
