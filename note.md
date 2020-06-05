@@ -333,3 +333,5 @@ Vue的响应式对象就是给对象添加一个 `enumbealbe = false` 的 `__ob_
   同一个组件
 - 各组件vnode之间的关系
 - 有了 `resolveAsset` 子组件的 `Vue.extend` 就走不到了？
+- defineReactive 中 dep 的层级问题
+- 所以每次数据变化都会重新 render ？
