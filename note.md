@@ -317,6 +317,29 @@ Vue的响应式对象就是给对象添加一个 `enumbealbe = false` 的 `__ob_
 > `observe` 函数的功能就是用来监测数据的变化
 > `Observer` 是一个类，它的作用是给对象的属性添加 getter 和 setter，用于依赖收集和派发更新
 
+## 依赖收集
+
+依赖收集就是订阅数据变化 Watcher 的收集
+
+响应式对象getter相关的逻辑就是做依赖收集，Dep是整个依赖收集的核心，`Dep.target` 是全局唯一
+的 Watcher，也就是同一时间只有一个 watcher 被计算
+Dep 实际上是对 watcher的一种管理，watcher 中有四个属性和当前的 dep有关
+```flow js
+this.deps = []
+this.newDeps = []
+this.depIds = new Set()
+this.newDepIds = new Set()
+```
+我们在实例化渲染watcher的时候，会执行get方法，首先会执行 `pushTarget(this)` ,接着执行 `updateComponent`
+这个方法会执行 `vm._render` 过程中会访问 vm 上的数据，进而触发对应数据的getter函数
+执行getter的过程中会在每一个数据对应的 dep 上，执行 `dep.depend()`,他会执行 `Dep.target.addDep(this)`
+就会给 `newDeps` 和 `newDepIds` 添加当前的 dep，然后把当前的 watcher 订阅到这个数据持有的 dep.subs 中
+到此为止当前 vm 的依赖收集已经结束了
+接下来执行 `popTarget`，把当前的 Dep.target 恢复成上一个状态
+接着会执行清空依赖的过程，deps是保存的上一个相关的dep，在第二次进行cleanupDeps的时候，会把newDeps中没有的从
+dep.subs 取消订阅，这样即使数据发生了改变，也不会触发重新渲染，算是vue一个比较重要的优化
+
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
@@ -335,3 +358,7 @@ Vue的响应式对象就是给对象添加一个 `enumbealbe = false` 的 `__ob_
 - 有了 `resolveAsset` 子组件的 `Vue.extend` 就走不到了？
 - defineReactive 中 dep 的层级问题
 - 所以每次数据变化都会重新 render ？
+- 每次都去实例化 watcher
+- 响应式的数据有哪些
+- 全局下的 dep 收集是过程最后的 Dep.target 指向
+
