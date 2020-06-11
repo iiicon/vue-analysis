@@ -339,6 +339,16 @@ this.newDepIds = new Set()
 接着会执行清空依赖的过程，deps是保存的上一个相关的dep，在第二次进行cleanupDeps的时候，会把newDeps中没有的从
 dep.subs 取消订阅，这样即使数据发生了改变，也不会触发重新渲染，算是vue一个比较重要的优化
 
+## 派发更新
+
+我们收集依赖的目的就是可以在修改数据的时候，可以对相关的依赖派发更新
+当我们在组件中对响应式的数据做了修改，就会 setter 的逻辑，最后会调用 `dep.notify()`,
+notify 中会遍历 dep.subs 中的 watcher，并执行 `sub[i].update()`，
+update 中会执行 `queueWatcher(this)` 把每次数据改变添加到一个队列里，
+然后在`nextTick` 执行 `flushSchedulerQueue`，挨个执行 `watcher.run`
+在这里会执行 `watcher` 的 `this.get()` 也就是 `updateComponent` 函数，并执行传入的回调函数 `this.cb`
+所以这就是当我们去修改组件相关的响应式数据的时候，会触发组件重新渲染的原因，接着就会重新执行 patch 的过程，
+但它和首次渲染有所不同
 
 ## 问题
 
@@ -361,4 +371,8 @@ dep.subs 取消订阅，这样即使数据发生了改变，也不会触发重�
 - 每次都去实例化 watcher
 - 响应式的数据有哪些
 - 全局下的 dep 收集是过程最后的 Dep.target 指向
+- userWatcher 的创建时机
+- watcher的时候渲染父组件会不会影响子组件
+- set执行时初始化的watcher 
+
 
