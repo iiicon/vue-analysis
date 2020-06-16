@@ -352,6 +352,22 @@ update 中会执行 `queueWatcher(this)` 把每次数据改变添加到一个队
 所以这就是当我们去修改组件相关的响应式数据的时候，会触发组件重新渲染的原因，接着就会重新执行 patch 的过程，
 但它和首次渲染有所不同
 
+## nextTick
+> Vue.nextTick Vue.prototype.$nextTick
+
+> 数据的变化到 DOM 的重新渲染是一个异步过程，发生在下一个 tick
+
+next-tick 中定义了 `timerFunc`, 用来异步执行 `flushCallbacks`
+首先判断支持promise，用promise.then
+接着判断支持 `MutationObserver` , 用 `new MutationObserver(flushCallbacks)`
+接着如果支持 `setImmediate` 用 `setImmediate`
+最后都不支持就用 `setTimeout`
+
+nextTick 函数接受 cb函数 或者ctx promise对象两种参数
+函数执行会把cb包在一个匿名函数中，push到 callbacks中，在下一个tick执行这些函数
+如果是promise对象，就有一个局部的变量 _resolve 保存 promise.resolve 函数，执行 _resolve
+就会跳到 then 的逻辑中，在下个tick执行
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
