@@ -374,7 +374,10 @@ nextTick 函数接受 cb函数 或者ctx promise对象两种参数
 是不能触发它的 setter 的
 
 Vue.set 定义在 `observer/index` 中，接受三个参数，target是对象或者数组，key是对象key或者数组index
-val是添加的值，
+val是添加的值，如果是数组，就直接splice插入，接下来判断对象，如果已经存在于 target 说明已经是响应式了，返回值就可以
+否则就拿到 target 的 ob 对象，如果 ob 不存在说明不是响应式对象，普通对象直接设置值就可以了，否则就调用 `defineReactive`
+把 target 上面对应 key 变为响应式的，接着会执行 `ob.dep.notify` 派发更新，在 `defineReactive` 中因为是 childOb会触发，
+所以收集依赖就会到对应 Observer 所持有的 dep中，这个时候执行 `dep.notify` 就会触发对应更新
 
 ## 问题
 
@@ -385,7 +388,7 @@ val是添加的值，
 - 子组件的 render 挂载的时机
 - vm 实例加载 render 方法的时机
 - 递归 patch insert 执行 insertHook
-- render 和 lifecycle 顺序
+- render 和 lifecycle 顺序````
   先执行 initLifecycle 会执行\$mount,进而执行\_render
 - 子组件 `quene` `insert` 和父组件
   顺序(只有他是 `componentvnode` 才会 push 到 `quene`) 渲染 node 和组件 vnode 就是
