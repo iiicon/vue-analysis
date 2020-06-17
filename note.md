@@ -368,6 +368,14 @@ nextTick 函数接受 cb函数 或者ctx promise对象两种参数
 如果是promise对象，就有一个局部的变量 _resolve 保存 promise.resolve 函数，执行 _resolve
 就会跳到 then 的逻辑中，在下个tick执行
 
+## 检测变化的注意事项
+
+对于使用 `Object.defineProperty` 实现响应式的对象，当我们去给这个对象添加一个新的属性的时候，
+是不能触发它的 setter 的
+
+Vue.set 定义在 `observer/index` 中，接受三个参数，target是对象或者数组，key是对象key或者数组index
+val是添加的值，
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
