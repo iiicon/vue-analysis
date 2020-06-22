@@ -215,7 +215,7 @@ export default class Watcher {
   /**
    * Depend on all deps collected by this watcher.
    */
-  depend () {
+  depend () { // computed 的时候执行上一个 deps 的depend
     let i = this.deps.length
     while (i--) {
       this.deps[i].depend()
