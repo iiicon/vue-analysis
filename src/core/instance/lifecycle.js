@@ -59,10 +59,9 @@ export function lifecycleMixin (Vue: Class<Component>) {
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
     const prevEl = vm.$el
-    const prevVnode = vm._vnode // TODO 有值否
+    const prevVnode = vm._vnode // 这里 _vnode 是保存的上一次的 vnode
     const restoreActiveInstance = setActiveInstance(vm)
-    // TODO
-    vm._vnode = vnode
+    vm._vnode = vnode // 保存
     // Vue.prototype.__patch__ is injected in entry points
     // based on the rendering backend used.
     if (!prevVnode) {
@@ -72,7 +71,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
       // updates
       vm.$el = vm.__patch__(prevVnode, vnode)
     }
-    restoreActiveInstance()
+    restoreActiveInstance();
     // update __vue__ reference
     if (prevEl) {
       prevEl.__vue__ = null

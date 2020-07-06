@@ -113,7 +113,7 @@ function baseSetAttr (el, key, value) {
   }
 }
 
-export default {
+ export default {
   create: updateAttrs,
   update: updateAttrs
 }

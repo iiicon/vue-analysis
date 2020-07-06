@@ -63,10 +63,12 @@ export function _createElement (
   if (isDef(data) && isDef(data.is)) {
     tag = data.is
   }
+
   if (!tag) {
     // in case of component :is set to falsy value
     return createEmptyVNode()
   }
+
   // warn against non-primitive key
   if (process.env.NODE_ENV !== 'production' &&
     isDef(data) && isDef(data.key) && !isPrimitive(data.key)
@@ -79,6 +81,7 @@ export function _createElement (
       )
     }
   }
+
   // support single function children as default scoped slot
   if (Array.isArray(children) &&
     typeof children[0] === 'function'
@@ -87,11 +90,13 @@ export function _createElement (
     data.scopedSlots = { default: children[0] } // TODO
     children.length = 0
   }
+
   if (normalizationType === ALWAYS_NORMALIZE) {
     children = normalizeChildren(children)
   } else if (normalizationType === SIMPLE_NORMALIZE) {
     children = simpleNormalizeChildren(children)
   }
+
   let vnode, ns
   if (typeof tag === 'string') {
     let Ctor
@@ -125,6 +130,7 @@ export function _createElement (
     // direct component options / constructor
     vnode = createComponent(tag, data, context, children)
   }
+
   if (Array.isArray(vnode)) {
     return vnode
   } else if (isDef(vnode)) {

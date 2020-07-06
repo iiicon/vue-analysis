@@ -32,9 +32,11 @@ export const emptyNode = new VNode('', {}, [])
 
 const hooks = ['create', 'activate', 'update', 'remove', 'destroy']
 
-function sameVnode (a, b) {
+function  sameVnode (a, b) {
   return (
-    a.key === b.key && (
+    // vnode.key 相同并且
+    // (tag 相同, isComment 相同，都有 data，是同样的 input) 或者（异步组件，工厂函数相同，没有错误）二选一
+    a.key === b.key && ( // key 在哪里定义的
       (
         a.tag === b.tag &&
         a.isComment === b.isComment &&
@@ -74,7 +76,7 @@ export function createPatchFunction (backend) {
   const { modules, nodeOps } = backend
 
   for (i = 0; i < hooks.length; ++i) {
-    cbs[hooks[i]] = []
+    cbs[hooks[i]] = [] // { created: [fn, fn] }
     for (j = 0; j < modules.length; ++j) {
       if (isDef(modules[j][hooks[i]])) {
         cbs[hooks[i]].push(modules[j][hooks[i]])
@@ -86,7 +88,7 @@ export function createPatchFunction (backend) {
     return new VNode(nodeOps.tagName(elm).toLowerCase(), {}, [], undefined, elm)
   }
 
-  function createRmCb (childElm, listeners) {
+  function createRmCb (childElm, listeners)  {
     function remove () {
       if (--remove.listeners === 0) {
         removeNode(childElm)
@@ -135,7 +137,7 @@ export function createPatchFunction (backend) {
       // This vnode was used in a previous render!
       // now it's used as a new node, overwriting its elm would cause
       // potential patch errors down the road when it's used as an insertion
-      // reference node. Instead, we clone the node on-demand before creating
+      // reference node. Instead, we c lone the node on-demand before creating
       // associated DOM element for it.
       vnode = ownerArray[index] = cloneVNode(vnode)
     }
@@ -165,7 +167,7 @@ export function createPatchFunction (backend) {
 
       vnode.elm = vnode.ns
         ? nodeOps.createElementNS(vnode.ns, tag)
-        : nodeOps.createElement(tag, vnode)
+        : nod0eOps.createElement(tag, vnode)
       setScope(vnode)
 
       /* istanbul ignore if */
@@ -504,10 +506,10 @@ export function createPatchFunction (backend) {
     oldVnode,
     vnode,
     insertedVnodeQueue,
-    ownerArray,
+    ownerArray, // 含义
     index,
     removeOnly
-  ) {
+  )  {
     if (oldVnode === vnode) {
       return
     }
@@ -549,11 +551,11 @@ export function createPatchFunction (backend) {
 
     const oldCh = oldVnode.children
     const ch = vnode.children
-    if (isDef(data) && isPatchable(vnode)) {
+    if (isDef(data) && isPatchable(vnode)) { // 执行的update钩子？具体。。。
       for (i = 0; i < cbs.update.length; ++i) cbs.update[i](oldVnode, vnode)
       if (isDef(i = data.hook) && isDef(i = i.update)) i(oldVnode, vnode)
     }
-    if (isUndef(vnode.text)) {
+    if (isUndef(vnode.text)) { //
       if (isDef(oldCh) && isDef(ch)) {
         if (oldCh !== ch) updateChildren(elm, oldCh, ch, insertedVnodeQueue, removeOnly)
       } else if (isDef(ch)) {
@@ -716,8 +718,10 @@ export function createPatchFunction (backend) {
       const isRealElement = isDef(oldVnode.nodeType)
       if (!isRealElement && sameVnode(oldVnode, vnode)) {
         // patch existing root node
+        // update 时候 新旧 vnode 相同
         patchVnode(oldVnode, vnode, insertedVnodeQueue, null, null, removeOnly)
       } else {
+        // update 时候 新旧vnode 不同
         if (isRealElement) {
           // mounting to a real element
           // check if this is server-rendered content and if we can perform
@@ -749,7 +753,7 @@ export function createPatchFunction (backend) {
         const oldElm = oldVnode.elm
         const parentElm = nodeOps.parentNode(oldElm)
 
-        // create new node
+        // create new node 第一步创建新节点
         createElm(
           vnode,
           insertedVnodeQueue,
@@ -760,15 +764,16 @@ export function createPatchFunction (backend) {
           nodeOps.nextSibling(oldElm)
         )
 
-        // update parent placeholder node element, recursively
+        // update parent placeholder node element, recursively 第二步更新父的占位符节点
         if (isDef(vnode.parent)) {
-          let ancestor = vnode.parent
+          let ancestor = vnode.parent // 占位符 vnode
           const patchable = isPatchable(vnode)
           while (ancestor) {
             for (let i = 0; i < cbs.destroy.length; ++i) {
               cbs.destroy[i](ancestor)
             }
-            ancestor.elm = vnode.elm
+            ancestor.elm = vnode.elm // ??????????????????????????? 多个 vnode 对应一个 element?
+
             if (patchable) {
               for (let i = 0; i < cbs.create.length; ++i) {
                 cbs.create[i](emptyNode, ancestor)
@@ -784,13 +789,13 @@ export function createPatchFunction (backend) {
                 }
               }
             } else {
-              registerRef(ancestor)
+              registerRef(ancestor) //
             }
-            ancestor = ancestor.parent
+            ancestor = ancestor.parent // 如果是rootVnode, (占位符parentVnode的parent也有)
           }
         }
 
-        // destroy old node
+        // destroy old node 第三步删除旧节点
         if (isDef(parentElm)) {
           removeVnodes([oldVnode], 0, 0)
         } else if (isDef(oldVnode.tag)) {
@@ -799,7 +804,7 @@ export function createPatchFunction (backend) {
       }
     }
 
-    invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch)
+    invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch) // **？？？？？
     return vnode.elm
   }
 }
