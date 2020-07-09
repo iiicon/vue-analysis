@@ -18,6 +18,7 @@ type PropOptions = {
   validator: ?Function
 };
 
+// 主要就是处理 Boolean 类型的数据，处理默认数据，prop断言，并最终返回prop值
 export function validateProp (
   key: string,
   propOptions: Object,
@@ -29,7 +30,7 @@ export function validateProp (
   let value = propsData[key]
   // boolean casting
   const booleanIndex = getTypeIndex(Boolean, prop.type)
-  if (booleanIndex > -1) {
+  if (booleanIndex > -1) { // boolean 类型
     if (absent && !hasOwn(prop, 'default')) {
       value = false
     } else if (value === '' || value === hyphenate(key)) {
@@ -56,7 +57,7 @@ export function validateProp (
     // skip validation for weex recycle-list child component props
     !(__WEEX__ && isObject(value) && ('@binding' in value))
   ) {
-    assertProp(prop, key, value, vm, absent)
+    assertProp(prop, key, value, vm, absent) // 属性断言 断言这个prop是否合法
   }
   return value
 }
@@ -67,7 +68,7 @@ export function validateProp (
 function getPropDefaultValue (vm: ?Component, prop: PropOptions, key: string): any {
   // no default, return undefined
   if (!hasOwn(prop, 'default')) {
-    return undefined
+    return undefined // 没有设置default，默认值就是undefined
   }
   const def = prop.default
   // warn against non-factory defaults for Object & Array
@@ -83,7 +84,7 @@ function getPropDefaultValue (vm: ?Component, prop: PropOptions, key: string): a
   // return previous default value to avoid unnecessary watcher trigger
   if (vm && vm.$options.propsData &&
     vm.$options.propsData[key] === undefined &&
-    vm._props[key] !== undefined
+    vm._props[key] !== undefined // 如果父组件没有传值，默认就是 undefined
   ) {
     return vm._props[key]
   }
@@ -104,6 +105,7 @@ function assertProp (
   vm: ?Component,
   absent: boolean
 ) {
+  // 首先判断如果 prop 定义了 required 属性但父组件没有传递这个 prop 数据的话会报一个警告。
   if (prop.required && absent) {
     warn(
       'Missing required prop: "' + name + '"',
@@ -111,6 +113,7 @@ function assertProp (
     )
     return
   }
+  // 接着判断如果 value 为空且 prop 没有定义 required 属性则直接返回。
   if (value == null && !prop.required) {
     return
   }
@@ -128,14 +131,14 @@ function assertProp (
     }
   }
 
-  if (!valid) {
+  if (!valid) { // 不通过警告
     warn(
       getInvalidTypeMessage(name, value, expectedTypes),
       vm
     )
     return
   }
-  const validator = prop.validator
+  const validator = prop.validator // 自定义的校验函数
   if (validator) {
     if (!validator(value)) {
       warn(

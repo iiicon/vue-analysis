@@ -212,7 +212,7 @@ export function mountComponent (
   return vm
 }
 
-export function updateChildComponent (
+export function  updateChildComponent (
   vm: Component,
   propsData: ?Object,
   listeners: ?Object,
@@ -268,7 +268,7 @@ export function updateChildComponent (
     for (let i = 0; i < propKeys.length; i++) {
       const key = propKeys[i]
       const propOptions: any = vm.$options.props // wtf flow?
-      props[key] = validateProp(key, propOptions, propsData, vm)
+      props[key] = validateProp(key, propOptions, propsData, vm) // 重新验证和计算新的 prop 数据，更新 vm._props，也就是子组件的 props
     }
     toggleObserving(true)
     // keep a copy of raw propsData

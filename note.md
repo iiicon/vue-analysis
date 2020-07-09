@@ -436,6 +436,13 @@ val 是添加的值，如果是数组，就直接 splice 插入，接下来判�
 创建新节点->更新父占位符节点->删除旧节点；而新旧节点相同的更新流程是去获取他们的 children，根据不同情况做不同的
 更新逻辑，最复杂的情况是新旧节点相同且他们都存在子节点，那么会执行 updateChildren 逻辑
 
+## props
+
+在初始话 props 之前，首先会对 props 做一次 normalize，它发生在 mergeOptions 的时候
+normalizeProps 就是把数组格式化为 `name: { type: null }` 对象格式化为 `name: { type: String }`
+props 的初始化主要发生在 \_init 阶段的 initState，initProps 函数主要做三件事情：校验、响应式和代理
+
+
 ## 问题
 
 - vm 实例加载 render 方法的时机

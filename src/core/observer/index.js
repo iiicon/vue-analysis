@@ -25,6 +25,8 @@ const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
 export let shouldObserve: boolean = true
 
 export function toggleObserving (value: boolean) {
+  // 用来控制在 observe 的过程中是否需要把当前值变成一个 Observer 对象
+  // 也就是说不需要对引用类型的 props 做响应式处理
   shouldObserve = value
 }
 
