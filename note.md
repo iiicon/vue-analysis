@@ -438,10 +438,71 @@ val 是添加的值，如果是数组，就直接 splice 插入，接下来判�
 
 ## props
 
+### props 初始化与规范化
+
 在初始话 props 之前，首先会对 props 做一次 normalize，它发生在 mergeOptions 的时候
 normalizeProps 就是把数组格式化为 `name: { type: null }` 对象格式化为 `name: { type: String }`
-props 的初始化主要发生在 \_init 阶段的 initState，initProps 函数主要做三件事情：校验、响应式和代理
+props 的初始化主要发生在 `_init` 阶段的 initState，其中 `initProps` 函数主要做三件事情：校验、响应式和代理
 
+1. 校验就是检查一下父组件传过来的 `prop` 数据是否满足我们 `prop` 的定义规范,主要就是执行 `validateProp`, 主要做 3 件事情，处理 Boolean 类型数据
+   处理默认数据，prop 断言，并返回最终的 `prop` 值
+2. 响应式，回到 `initProps` 方法，当我们通过 `const value = validateProp(key, propsOptions, propsData, vm)`对 prop 做
+   验证并且获取到 `prop` 值后，接下来通过 `defineReactive` 把 `prop` 变成响应式, 需要注意的是在开发环境我们会
+   传一个 customSetter，当我们对 prop 赋值的时候会触发输出警告
+3. 在经过响应式处理后，我们会把 prop 的值添加到 vm.\_props 中，比如 key 为 name 的 prop，它的值保存在 `vm._props.name` 中
+   但是我们在组件中可以通过 this.name 访问到这个 prop,这就是代理做的事情。
+   其实对于非根实例的子组件而言， prop 的代理发生在 Vue.extend 阶段，执行 `proxy(Comp.prototype,`\_props`, key)`,
+   把 props 代理到原型上，这样不用为每个组件实例都做一层 proxy，是一种优化手段。
+
+### props 更新
+
+当父组件中 `props` 变化，触发父组件的重新渲染，会执行 `patch`，进而执行 `patchVnode` 函数，`patchVnode` 通常是一个
+递归过程，当他遇到组件 `vnode` 的时候会执行，会执行组件更新过程的 `prepatch` 钩子函数，内部会调用 `updateChildComponents`
+来更新 `props`，第二个参数就是父组件的 `propsData`，因为在组件的 `render` 过程中，对于组件节点会通过 `createComponent`
+方法来创建组件 `vnode`，在创建组件 `vnode` 的过程中，首先从 `data` 中提取出 `propData`, 然后在 `new VNode` 的时候作为第七个参数
+`VNodeComponentOptions` 中的属性传入，所以我们可以通过`vnode.componentOptions.propsData` 拿到 prop 数据,
+然后通过 `updateChildComponent` 更新 `props`，而且保存 `propsData` `vm.$options.propsData = propsData`
+
+### toggleObserving
+
+```flow js
+export let shouldObserve: boolean = true;
+
+export function toggleObserving(value: boolean) {
+  shouldObserve = value;
+}
+```
+
+在当前模块中定义 shouldObserve 变量，用来控制 observe 过程中是否需要把当前值变成一个 observe 对象，
+那么为什么在 props 的初始化和更新过程中，多次执行 toggleObserving(false) 呢？我们分几种情况来分析
+
+- 在 initProps 的时候：
+  对于非实例的情况，我们会执行 `toggleObserving(false)`, 然后对于每一个 `prop` 值，去执行 `defineReactive(props, key, value)`
+  去把它编程响应式，由于 `shouldObserve` 的值变成了 false，这个递归过程就被省略了，为什么会这样呢？
+  因为对于对象的 `porp` 值，子组件的 `prop` 始终指向父组件的 `prop` 值，只要父组件的 `prop` 值变化，
+  就会触发子组件的重新渲染，所以这个 `observe` 是可以省略的。最后恢复为 `true` 就好
+- 在 validateProp 的时候：
+  因为这里的逻辑是处理默认值的，而默认值是一个拷贝，所以需要把他变成响应式的，设为 `true`
+- 在 updateChildComponent 的时候：
+  不需要递归处理引用类型的 `props`，所以也需要设为 `false`
+  
+ ## 编译入口
+ 
+ 在执行 $mount 的时候，会有一系列的判断逻辑，
+ 如果没有 render 就会执行 `compileToFunction(template, options, vm) `去创建 render 函数
+`compileToFunction` 是由 `createCompiler(baseOptions)` 生成的, 
+而 `createCompiler` 则是由 `createCompilerCreator(function baseCompile(template, options){})` 执行后的返回值，
+`createCompilerCreator(baseCompile: Function): Function {}` 定义在 `create-compiler` 中，
+这个函数返回 createCompiler 函数，这里就是 createCompiler 函数的定义，它接受一个 baseOptions 的参数，
+返回一个对象，包括 `compile` 方法和 `compileToFunctions` 属性，`compileToFunctions` 是由 `createCompileToFunctionsFn` 执行返回，
+这里返回的函数就是 `compileToFunctions` 的定义，核心代码就是 `const compiled = compile(template, options)` 执行编译过程, 
+`compile` 函数定义在 `createCompilerCreator` 函数中，就是先处理配置参数，再执行编译 `const compiled = baseCompile(template, finalOptions)`
+`baseCompile` 在执行 `createCompilerCreator(baseCompile)` 中作为参数传入，这里是就是编译的入口，主要执行如下的逻辑
+- 解析模板字符串生成AST `const ast = parse(template.trim(), options)`
+- 优化语法树 `optimize(ast, options)`
+- 生成代码 `const code = generate(ast, options)`
+
+ 
 
 ## 问题
 

@@ -132,10 +132,10 @@ function assertProp (
   }
 
   if (!valid) { // 不通过警告
-    warn(
-      getInvalidTypeMessage(name, value, expectedTypes),
-      vm
-    )
+      warn(
+        getInvalidTypeMessage(name, value, expectedTypes),
+        vm
+      )
     return
   }
   const validator = prop.validator // 自定义的校验函数

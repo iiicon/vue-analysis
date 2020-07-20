@@ -545,7 +545,7 @@ export function createPatchFunction (backend) {
 
     let i
     const data = vnode.data
-    if (isDef(data) && isDef(i = data.hook) && isDef(i = i.prepatch)) {
+    if (isDef(data) && isDef(i = data.hook) && isDef(i = i.prepatch)) { // 更新props触发
       i(oldVnode, vnode)
     }
 
