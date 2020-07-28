@@ -485,24 +485,69 @@ export function toggleObserving(value: boolean) {
   因为这里的逻辑是处理默认值的，而默认值是一个拷贝，所以需要把他变成响应式的，设为 `true`
 - 在 updateChildComponent 的时候：
   不需要递归处理引用类型的 `props`，所以也需要设为 `false`
-  
- ## 编译入口
- 
- 在执行 $mount 的时候，会有一系列的判断逻辑，
- 如果没有 render 就会执行 `compileToFunction(template, options, vm) `去创建 render 函数
-`compileToFunction` 是由 `createCompiler(baseOptions)` 生成的, 
+
+## 编译入口
+
+在执行 `$mount` 的时候，会有一系列的判断逻辑，
+如果没有 `render` 就会执行 `compileToFunction(template, options, vm)`去创建 render 函数
+`compileToFunction` 是由 `createCompiler(baseOptions)` 生成的,
 而 `createCompiler` 则是由 `createCompilerCreator(function baseCompile(template, options){})` 执行后的返回值，
 `createCompilerCreator(baseCompile: Function): Function {}` 定义在 `create-compiler` 中，
 这个函数返回 createCompiler 函数，这里就是 createCompiler 函数的定义，它接受一个 baseOptions 的参数，
 返回一个对象，包括 `compile` 方法和 `compileToFunctions` 属性，`compileToFunctions` 是由 `createCompileToFunctionsFn` 执行返回，
-这里返回的函数就是 `compileToFunctions` 的定义，核心代码就是 `const compiled = compile(template, options)` 执行编译过程, 
+这里返回的函数就是 `compileToFunctions` 的定义，核心代码就是 `const compiled = compile(template, options)` 执行编译过程,
 `compile` 函数定义在 `createCompilerCreator` 函数中，就是先处理配置参数，再执行编译 `const compiled = baseCompile(template, finalOptions)`
 `baseCompile` 在执行 `createCompilerCreator(baseCompile)` 中作为参数传入，这里是就是编译的入口，主要执行如下的逻辑
-- 解析模板字符串生成AST `const ast = parse(template.trim(), options)`
+
+- 解析模板字符串生成 AST `const ast = parse(template.trim(), options)`
 - 优化语法树 `optimize(ast, options)`
 - 生成代码 `const code = generate(ast, options)`
 
- 
+`vue` 在不同的平台下都会有编译的过程，因此编译配置中的 baseOptions 会有所不同，
+利用函数柯里化，实现对 `baseOptions` 的参数暴露，最后返回一个纯净的 `compile` 函数
+对运行时很友好，`baseCompile` 也是同样的道理，利用函数柯里化实现逻辑分离，代码看起来分块，很整洁
+
+## parse
+
+编译过程首先就是对模板做解析，生成 AST，它是一种抽象语法树，是对源代码的抽象语法结构的树状
+表现形式
+
+```js
+export function parseHTML (html, options) {
+  let lastTag
+  while (html) {
+    if (!lastTag || !isPlainTextElement(lastTag)){ // 不是 script style textarea
+      let textEnd = html.indexOf('<')
+      if (textEnd === 0) {
+         if(matchComment) {
+           advance(commentLength)
+           continue
+         }
+         if(matchDoctype) {
+           advance(doctypeLength)
+           continue
+         }
+         if(matchEndTag) {
+           advance(endTagLength)
+           parseEndTag()
+           continue
+         }
+         if(matchStartTag) {
+           parseStartTag()
+           handleStartTag()
+           continue
+         }
+      }
+      handleText()
+      advance(textLength)
+    } else {
+       handlePlainTextElement()
+       parseEndTag()
+    }
+  }
+}
+```
+
 
 ## 问题
 

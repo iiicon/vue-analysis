@@ -76,7 +76,7 @@ export function createASTElement (
 /**
  * Convert HTML string to AST.
  */
-export function parse (
+export function  parse (
   template: string,
   options: CompilerOptions
 ): ASTElement | void {
