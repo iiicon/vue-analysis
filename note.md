@@ -513,41 +513,47 @@ export function toggleObserving(value: boolean) {
 表现形式
 
 ```js
-export function parseHTML (html, options) {
-  let lastTag
+export function parseHTML(html, options) {
+  let lastTag;
   while (html) {
-    if (!lastTag || !isPlainTextElement(lastTag)){ // 不是 script style textarea
-      let textEnd = html.indexOf('<')
+    if (!lastTag || !isPlainTextElement(lastTag)) {
+      // 不是 script style textarea
+      let textEnd = html.indexOf("<");
       if (textEnd === 0) {
-         if(matchComment) {
-           advance(commentLength)
-           continue
-         }
-         if(matchDoctype) {
-           advance(doctypeLength)
-           continue
-         }
-         if(matchEndTag) {
-           advance(endTagLength)
-           parseEndTag()
-           continue
-         }
-         if(matchStartTag) {
-           parseStartTag()
-           handleStartTag()
-           continue
-         }
+        if (matchComment) {
+          advance(commentLength);
+          continue;
+        }
+        if (matchDoctype) {
+          advance(doctypeLength);
+          continue;
+        }
+        if (matchEndTag) {
+          advance(endTagLength);
+          parseEndTag();
+          continue;
+        }
+        if (matchStartTag) {
+          parseStartTag();
+          handleStartTag();
+          continue;
+        }
       }
-      handleText()
-      advance(textLength)
+      handleText();
+      advance(textLength);
     } else {
-       handlePlainTextElement()
-       parseEndTag()
+      handlePlainTextElement();
+      parseEndTag();
     }
   }
 }
 ```
 
+`parse` 的目标就是吧 `template` 模板字符串转换成 `AST` 树。它是一种用 `JavaScript` 对象的形式来描述整个模板，
+那么整个 `parse` 的过程是利用正则表达式顺序解析模板， 当解析到开始标签，闭合标签，文本的时候都会分别执行对应的回调函数，
+来达到构建 `ast` 树的目的
+
+AST 有三种类型，type 为 1 表示普通元素，2 为表达式，3 表示纯文本
 
 ## 问题
 
