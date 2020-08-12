@@ -555,6 +555,11 @@ export function parseHTML(html, options) {
 
 AST 有三种类型，type 为 1 表示普通元素，2 为表达式，3 表示纯文本
 
+## optimize
+
+我们在编译阶段可以把一些 AST 节点优化成静态节点，所以整个 optimize 的过程就干两件事情，
+`markStatic(root)` 标记静态节点 ，`markStaticRoots(root, false)` 标记静态根
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
@@ -584,3 +589,4 @@ AST 有三种类型，type 为 1 表示普通元素，2 为表达式，3 表示�
 - invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch) // \*\*？？？？？
 - 什么样的 vnode 有 key
 - **看一下 updateChildren**
+- 数据改变对应dom改变，内部的依赖关系是怎么样的
