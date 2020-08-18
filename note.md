@@ -560,6 +560,143 @@ AST 有三种类型，type 为 1 表示普通元素，2 为表达式，3 表示�
 我们在编译阶段可以把一些 AST 节点优化成静态节点，所以整个 optimize 的过程就干两件事情，
 `markStatic(root)` 标记静态节点 ，`markStaticRoots(root, false)` 标记静态根
 
+标记静态节点首先要执行 `node.static = isStatic(node)` 这个方法是对一个 ast 元素节点是否是静态的判断
+如果是表达是就是非静态，如果是纯文本就是静态，对于一个普通元素，如果有 `pre` 属性，那么它使用了 `v-pre` 指令，是静态，否则要同时
+满足下面条件：没有 `v-if`，没有 `v-for` 没有其他指令，非内置组件，是平台保留的标签，非带有 `v-for` 的 `template` 标签的直接子节点，节点的所有属性的 key 都满
+满足静态 `key`，这样就是一个静态节点
+如果这个节点是一个普通元素，则遍历它的 `children`，递归执行 `markStatic`.因为所有的 `elseif` 和 `else` 节点都不在 `children` 中，如果节点的
+`ifConditions` 不为空，则遍历 `ifConfitions` 拿到所有条件中的 `block`，也是他们对应的 ast 节点，递归执行 `markStatic`. 在这些过程中，一旦
+子节点有不是 `static` 的情况，则它的父节点的 `static` 均变为 `false`
+
+`markStaticRoots` 第二个参数是 `isInfor`，对于已经是 `static` 的节点或者是 `v-once` 指令的节点，`node.staticInFor = isInFor`
+接着就是对于 `staticRoot` 的判断逻辑，从注释中我们可以看到，对于有资格成为 `staticRoot` 的节点，除了本身是一个静态节点外，
+必须满足拥有 `children`，并且 `children` 不能只是一个文本节点，不然的话把它标记成静态根节点的收益就很小了。
+接下来和标记静态节点的逻辑一样，遍历 `children` 以及 `ifConditions`，递归执行 `markStaticRoots`。
+
+`optimize` 的过程就是深度遍历这个 `AST` 树，去检测它的每一颗子树是不是静态节点，如果是静态节点则它们 `dom` 永远不需要改变，这对运行时对模板的更新
+起到极大的优化作用
+通过 `optimize` 把整个 `ast` 树的每一个节点都标记了 `static` 和 `staticRoot`，它会影响 `codegen`
+
+## codegen
+
+编译的最后一步就是把优化后的 `AST` 树转换成可执行的代码
+
+```html
+<ul :class="bindCls" class="list" v-if="isShow">
+  <li v-for="(item,index) in data" @click="clickItem(index)">
+    {{item}}:{{index}}
+  </li>
+</ul>
+```
+
+上面的 html 经过编译执行 `const code = generate(ast,options)`，生成的 `render` 代码串如下
+
+```js
+with (this) {
+  return isShow
+    ? _c(
+        "ul",
+        {
+          staticClass: "list",
+          class: bindCls
+        },
+        _l(data, function(item, index) {
+          return _c(
+            "li",
+            {
+              on: {
+                click: function($event) {
+                  clickItem(index);
+                }
+              }
+            },
+            [_v(_s(item) + ":" + _s(index))]
+          );
+        })
+      )
+    : _e();
+}
+```
+
+在 `compileToFunctions` 函数中，会把这个 `render` 代码串转换成函数
+
+generate 函数首先通过 `genElement(ast, state)` 生成 code，再把 code 用 `with(this){return ${code}}`
+包裹起来。
+基本就是判断当前 AST 元素节点的属性执行不同的代码生成函数，在这个例子中用到了 genIf 和 genFor
+
+- genIf 主要是通过执行 `genIfConditions`, 它依次从 conditions 获取第一个 condition。这样如果
+  有多个 genTernaryExp 最终调用了 genElement 在这个例子中最后生成代码
+
+```js
+return isShow ? genElement(el, state) : _e();
+```
+
+- genFor 逻辑很简单，首先从 ast 元素中获取和 for 相关的一些属性，然后返回了一个代码字符串
+  在我们的例子中，exp 是 data，alias 是 item，iterator1 是 index，因此生成代码如下
+
+```js
+_l(data, function(item, index) {
+  return genElement(el, state);
+});
+```
+
+再次回到主逻辑中，他的最外层是 ul，首先执行 genIf，它最终调用了 genElement(el, state) 去
+生成子节点，这里的 `el` 指向 ul 对应的 ast 节点，代码会顺序执行 genData 和 genChildren
+
+- genData 函数就是根据 ast 元素节点的属性构造出一个 data 字符串，这个在后面创建 vnode 的时候会作为
+  参数传入。在其中会执行 有关 CodegenState 实例 state 的逻辑
+
+```js
+for (let i = 0; i < state.dataGenFns.length; i++) {
+  data += state.dataGenFns[i](el);
+}
+// 实际就是调用moudles中 genData函数
+function genData(el: ASTElement): string {
+  let data = "";
+  if (el.staticClass) {
+    data += `staticClass:${el.staticClass},`;
+  }
+  if (el.classBinding) {
+    data += `class:${el.classBinding},`;
+  }
+  return data;
+}
+```
+
+最终生成的代码
+
+```js
+data = {
+  staticClass: "list",
+  class: "bindCls"
+};
+```
+
+- genChildren
+
+`genElement` 函数最后就会执行 `genChidren`，在我们的例子中，在执行 `genElement(el, state)` 的时候，
+`el` 还是 `li` 的 `ast` 元素节点，因此通过 `genElement(el, state)` 生成 `li` AST 元素节点的代码，
+执行完回到 `genfor` 的逻辑，会执行 `genHandlers`，拼接到 `data` 上接着继续执行 `genChildren`，
+遍历 `children` 执行 `genNode`, `type` 为 2 的表达是会执行 `genText(node)` 逻辑
+
+```js
+export function genText(text: ASTText | ASTExpression): string {
+  return `_v(${
+    text.type === 2
+      ? text.expression
+      : transformSpecialNewlines(JSON.stringify(text.text))
+  })`;
+}
+```
+
+因此在我们的例子中，`genChildren` 生成的代码串如下：
+
+```js
+[_v(_s(item) + ":" + _s(index))];
+```
+
+字符串拼起来就是我们要执行的代码
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
@@ -589,4 +726,4 @@ AST 有三种类型，type 为 1 表示普通元素，2 为表达式，3 表示�
 - invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch) // \*\*？？？？？
 - 什么样的 vnode 有 key
 - **看一下 updateChildren**
-- 数据改变对应dom改变，内部的依赖关系是怎么样的
+- 数据改变对应 dom 改变，内部的依赖关系是怎么样的
