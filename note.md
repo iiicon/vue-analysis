@@ -697,6 +697,80 @@ export function genText(text: ASTText | ASTExpression): string {
 
 字符串拼起来就是我们要执行的代码
 
+## event
+
+对于一个组件元素，我们可以绑定原生 DOM 事件，还可以绑定自定义事件,先从编译阶段开始看起，在 `parse` 阶段，会执行 `processAttrs` 方法，它的定义在`src/compiler/parser/index.js` 中：
+在对标签属性的处理过程中，判断如果是指令，首先通过 `parseModifiers` 解析出修饰符
+然后判断如果事件的指令，则执行 `addHandler(el, name, value)`
+
+`addHandler` 做三件事情，首先根据 `modifier` 修饰符对事件名 `name` 做处理，接着根据 `modifier.native` 判断是一个纯原生事件还是普通事件，
+分别对应 `el.nativeEvents` 和 `el.events`, 最后按照 `name` 对事件做归类，并把回调函数的字符串保留到对应的事件中
+
+例子
+
+```js
+el.events = {
+  select: {
+    value: "selectHandler"
+  }
+};
+
+el.nativeEvents = {
+  click: {
+    value: "clickHandler",
+    modifiers: {
+      prevent: true
+    }
+  }
+};
+el.events = {
+  click: {
+    value: "clickHandler($event)"
+  }
+};
+```
+
+然后在 `codegen` 的阶段，会在 `genData` 函数中根据 ast 元素节点上的 `events` 和 `nativeEvents` 生成 data 数据，它定义在 `src/compiler/codegen/index.js` 中
+根据 `el.events` 和 `el.nativeEvents` 会调用 `genHandlers` 函数，这个方法遍历事件对象 `events`，对同一个事件名称的事件调用 `genHandler(name, events[name])`
+首先先判断如果 handler 是一个数组，就遍历它然后递归调用 genHandler 方法拼接结果，然后判断 handler.value 是一个函数的调用路径还是一个函数表达式
+接着对modifiers 做判断，对于没有 modifiers 的情况，就根据 handler.value 不同情况处理，要么直接返回，要么返回一个函数包裹的表达式，对于有modifiers
+的情况，则对各种不同的 modifier 情况做不同处理，添加相应的代码串
+
+以上就是编译部分，接下来看运行时如何实现自定义事件和dom事件
+
+所有和 web 相关的 module 都定义在 `src/platforms/web/runtime/modules` 目录下，事件相关的就是 `events.js`
+在 `patch` 执行创建阶段和更新阶段都会执行 `updateDOMListeners`，获取 on 和 oldOn 然后执行 `updateListeners`,
+updateListeners 遍历 on 去添加事件监听，遍历 oldOn 去移除事件监听
+
+对于不同的情况，逻辑不同，主要是定义了 `createFnInvoker` 
+
+```js
+export function createFnInvoker (fns: Function | Array<Function>): Function {
+  function invoker () {
+    const fns = invoker.fns
+    if (Array.isArray(fns)) {
+      const cloned = fns.slice()
+      for (let i = 0; i < cloned.length; i++) {
+        cloned[i].apply(null, arguments)
+      }
+    } else {
+      return fns.apply(null, arguments)
+    }
+  }
+  invoker.fns = fns
+  return invoker
+}
+```
+这里定义了 invoker 方法并返回，由于一个事件可能会对应多个回调函数，所以这里做了数组的判断，多个回调函数就依次调用。注意最后的赋值逻辑。
+invoker.fns = fns，每一次执行 invoker 函数都是从 invoker.fns 里执行回调函数，回到 updateListeners, 当我们第二次执行该函数的时候，
+判断如果 cur!==old 那么只需要更改 old.fns = cur 把之前绑定的 invoker.fns 赋值为新的回调函数即可，并且通过 on[name]=old 保留关系，
+这样就保证了事件回调只添加一次，之后仅仅去修改它的回调函数的引用
+
+
+
+
+
+
 ## 问题
 
 - vm 实例加载 render 方法的时机
