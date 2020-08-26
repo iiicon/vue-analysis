@@ -733,43 +733,158 @@ el.events = {
 然后在 `codegen` 的阶段，会在 `genData` 函数中根据 ast 元素节点上的 `events` 和 `nativeEvents` 生成 data 数据，它定义在 `src/compiler/codegen/index.js` 中
 根据 `el.events` 和 `el.nativeEvents` 会调用 `genHandlers` 函数，这个方法遍历事件对象 `events`，对同一个事件名称的事件调用 `genHandler(name, events[name])`
 首先先判断如果 handler 是一个数组，就遍历它然后递归调用 genHandler 方法拼接结果，然后判断 handler.value 是一个函数的调用路径还是一个函数表达式
-接着对modifiers 做判断，对于没有 modifiers 的情况，就根据 handler.value 不同情况处理，要么直接返回，要么返回一个函数包裹的表达式，对于有modifiers
+接着对 modifiers 做判断，对于没有 modifiers 的情况，就根据 handler.value 不同情况处理，要么直接返回，要么返回一个函数包裹的表达式，对于有 modifiers
 的情况，则对各种不同的 modifier 情况做不同处理，添加相应的代码串
 
-以上就是编译部分，接下来看运行时如何实现自定义事件和dom事件
+以上就是编译部分，接下来看运行时如何实现自定义事件和 dom 事件
 
 所有和 web 相关的 module 都定义在 `src/platforms/web/runtime/modules` 目录下，事件相关的就是 `events.js`
 在 `patch` 执行创建阶段和更新阶段都会执行 `updateDOMListeners`，获取 on 和 oldOn 然后执行 `updateListeners`,
 updateListeners 遍历 on 去添加事件监听，遍历 oldOn 去移除事件监听
 
-对于不同的情况，逻辑不同，主要是定义了 `createFnInvoker` 
+对于不同的情况，逻辑不同，主要是定义了 `createFnInvoker`
 
 ```js
-export function createFnInvoker (fns: Function | Array<Function>): Function {
-  function invoker () {
-    const fns = invoker.fns
+export function createFnInvoker(fns: Function | Array<Function>): Function {
+  function invoker() {
+    const fns = invoker.fns;
     if (Array.isArray(fns)) {
-      const cloned = fns.slice()
+      const cloned = fns.slice();
       for (let i = 0; i < cloned.length; i++) {
-        cloned[i].apply(null, arguments)
+        cloned[i].apply(null, arguments);
       }
     } else {
-      return fns.apply(null, arguments)
+      return fns.apply(null, arguments);
     }
   }
-  invoker.fns = fns
-  return invoker
+  invoker.fns = fns;
+  return invoker;
 }
 ```
+
 这里定义了 invoker 方法并返回，由于一个事件可能会对应多个回调函数，所以这里做了数组的判断，多个回调函数就依次调用。注意最后的赋值逻辑。
 invoker.fns = fns，每一次执行 invoker 函数都是从 invoker.fns 里执行回调函数，回到 updateListeners, 当我们第二次执行该函数的时候，
 判断如果 cur!==old 那么只需要更改 old.fns = cur 把之前绑定的 invoker.fns 赋值为新的回调函数即可，并且通过 on[name]=old 保留关系，
 这样就保证了事件回调只添加一次，之后仅仅去修改它的回调函数的引用
 
+我们在 `initInternalComponent` 中可以拿到自定义事件 `opts._parentListeners = vnodeComponentOptions.listeners`, 在 initEvents
+函数中，会执行 `updateComponentListeners` 添加自定义事件，在这个函数中同样会执行 `udpateListeners`,其中的 `add` 参数和 `remove` 参数是传入和 `dom` 不同的函数
+对于自定义事件 `add` 函数如下
 
+```js
+function add(event, fn, once) {
+  if (once) {
+    target.$once(event, fn);
+  } else {
+    target.$on(event, fn);
+  }
+}
 
+function remove(event, fn) {
+  target.$off(event, fn);
+}
+```
 
+```js
+Vue.prototype.$on = function(
+  event: string | Array<string>,
+  fn: Function
+): Component {
+  const vm: Component = this;
+  if (Array.isArray(event)) {
+    for (let i = 0, l = event.length; i < l; i++) {
+      vm.$on(event[i], fn);
+    }
+  } else {
+    (vm._events[event] || (vm._events[event] = [])).push(fn);
+    // optimize hook:event cost by using a boolean flag marked at registration
+    // instead of a hash lookup
+    if (hookRE.test(event)) {
+      vm._hasHookEvent = true;
+    }
+  }
+  return vm;
+};
 
+Vue.prototype.$once = function(event: string, fn: Function): Component {
+  const vm: Component = this;
+  function on() {
+    vm.$off(event, on);
+    fn.apply(vm, arguments);
+  }
+  on.fn = fn;
+  vm.$on(event, on);
+  return vm;
+};
+
+Vue.prototype.$off = function(
+  event?: string | Array<string>,
+  fn?: Function
+): Component {
+  const vm: Component = this;
+  // all
+  if (!arguments.length) {
+    vm._events = Object.create(null);
+    return vm;
+  }
+  // array of events
+  if (Array.isArray(event)) {
+    for (let i = 0, l = event.length; i < l; i++) {
+      vm.$off(event[i], fn);
+    }
+    return vm;
+  }
+  // specific event
+  const cbs = vm._events[event];
+  if (!cbs) {
+    return vm;
+  }
+  if (!fn) {
+    vm._events[event] = null;
+    return vm;
+  }
+  // specific handler
+  let cb;
+  let i = cbs.length;
+  while (i--) {
+    cb = cbs[i];
+    if (cb === fn || cb.fn === fn) {
+      cbs.splice(i, 1);
+      break;
+    }
+  }
+  return vm;
+};
+
+Vue.prototype.$emit = function(event: string): Component {
+  const vm: Component = this;
+
+  let cbs = vm._events[event];
+  if (cbs) {
+    cbs = cbs.length > 1 ? toArray(cbs) : cbs;
+    const args = toArray(arguments, 1);
+    const info = `event handler for "${event}"`;
+    for (let i = 0, l = cbs.length; i < l; i++) {
+      invokeWithErrorHandling(cbs[i], vm, args, vm, info);
+    }
+  }
+  return vm;
+};
+```
+
+这是典型的发布订阅模式，有一个事件中心 vm.\_events,当执行 vm.$on(event, fn) 的时候，按事件的名称 event把
+回调函数 fn 存储起来，vm.events[event].push(fn)，当执行 vm.$emit(event) 的时候，根据事件名 event 找到所有的回调函数，然后执行所有的
+回调函数。当执行 vm.\$off(event, fn) 的时候会移除指定事件名 event 和指定 fn
+
+所以对于用户自定义的事件添加和删除就是利用了这几个 api，需要注意的一点是 vm.\$emit 是给当前的 vm 上派发的实例，之所以我们常用它做父子组件的通讯
+是因为它的回调函数的定义是在父组件中，执行的时候就会执行到父组件中定义的方法，这样就相当于完成了一次父子组件的通讯
+
+### 总结
+
+那么至此我们对 Vue 的事件实现有了进一步的了解，Vue 支持 2 种事件类型，原生 DOM 事件和自定义事件，它们主要的区别在于添加和删除事件的方式不一样，
+并且自定义事件的派发是往当前实例上派发，但是可以利用在父组件环境定义回调函数来实现父子组件的通讯。
+另外要注意一点，只有组件节点才可以添加自定义事件，并且添加原生 DOM 事件需要使用 native 修饰符；而普通元素使用 .native 修饰符是没有作用的，
+也只能添加原生 DOM 事件。
 
 ## 问题
 
@@ -801,3 +916,5 @@ invoker.fns = fns，每一次执行 invoker 函数都是从 invoker.fns 里执�
 - 什么样的 vnode 有 key
 - **看一下 updateChildren**
 - 数据改变对应 dom 改变，内部的依赖关系是怎么样的
+- 执行 invokeCreateHooks 的两个地方的含义
+- 实例之间的联系？？
