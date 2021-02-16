@@ -76,7 +76,7 @@ export function createASTElement (
 /**
  * Convert HTML string to AST.
  */
-export function parse (
+export function  parse (
   template: string,
   options: CompilerOptions
 ): ASTElement | void {
@@ -489,6 +489,7 @@ function processRef (el) {
 export function processFor (el: ASTElement) {
   let exp
   if ((exp = getAndRemoveAttr(el, 'v-for'))) {
+    // 从元素中拿到 v-for 指令的内容，然后分别解析出 for、alias、iterator1、iterator2 等属性的值添加到 AST 的元素上。
     const res = parseFor(exp)
     if (res) {
       extend(el, res)
@@ -508,6 +509,7 @@ type ForParseResult = {
   iterator2?: string;
 };
 
+// v-for="(item,index) in data" 而言，解析出的的 for 是 data，alias 是 item，iterator1 是 index，没有 iterator2
 export function parseFor (exp: string): ?ForParseResult {
   const inMatch = exp.match(forAliasRE)
   if (!inMatch) return

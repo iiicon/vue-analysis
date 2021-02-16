@@ -25,6 +25,8 @@ const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
 export let shouldObserve: boolean = true
 
 export function toggleObserving (value: boolean) {
+  // 用来控制在 observe 的过程中是否需要把当前值变成一个 Observer 对象
+  // 也就是说不需要对引用类型的 props 做响应式处理
   shouldObserve = value
 }
 
@@ -107,7 +109,7 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
  */
-export function observe (value: any, asRootData: ?boolean): Observer | void {
+export function  observe (value: any, asRootData: ?boolean): Observer | void {
   if (!isObject(value) || value instanceof VNode) {
     return
   }
@@ -200,11 +202,11 @@ export function defineReactive (
  */
 export function set (target: Array<any> | Object, key: any, val: any): any {
   if (process.env.NODE_ENV !== 'production' &&
-    (isUndef(target) || isPrimitive(target))
+    (isUndef(target) || isPrimitive(target)) // 基础类型直接返回
   ) {
     warn(`Cannot set reactive property on undefined, null, or primitive value: ${(target: any)}`)
   }
-  if (Array.isArray(target) && isValidArrayIndex(key)) {
+  if (Array.isArray(target) && isValidArrayIndex(key)) { // 这里不是数组的原生api
     target.length = Math.max(target.length, key)
     target.splice(key, 1, val)
     return val

@@ -55,10 +55,9 @@ export function parseHTML (html, options) {
   const stack = []
   const expectHTML = options.expectHTML
   const isUnaryTag = options.isUnaryTag || no
-  const canBeLeftOpenTag = options.canBeLeftOpenTag || no
   let index = 0
   let last, lastTag
-  while (html) {
+  while (html)  {
     last = html
     // Make sure we're not in a plaintext content element like script/style
     if (!lastTag || !isPlainTextElement(lastTag)) {
@@ -179,7 +178,7 @@ export function parseHTML (html, options) {
   // Clean up any remaining tags
   parseEndTag()
 
-  function advance (n) {
+  function  advance (n) {
     index += n
     html = html.substring(n)
   }
@@ -242,7 +241,7 @@ export function parseHTML (html, options) {
       }
     }
 
-    if (!unary) {
+    if (!unary) { // 检测标签是否闭合
       stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs, start: match.start, end: match.end })
       lastTag = tagName
     }

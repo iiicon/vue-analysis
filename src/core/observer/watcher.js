@@ -127,7 +127,7 @@ export default class Watcher {
    */
   addDep (dep: Dep) {
     const id = dep.id
-    if (!this.newDepIds.has(id)) {
+    if (!this.newDepIds.has(id)) { // 判断id不用多次添加，保存两套，newDeps每次cleanup会清空，deps会缓存newDeps
       this.newDepIds.add(id)
       this.newDeps.push(dep)
       if (!this.depIds.has(id)) {
@@ -148,7 +148,7 @@ export default class Watcher {
       }
     }
     let tmp = this.depIds
-    this.depIds = this.newDepIds
+    this.depIds = this.newDepIds  // 把newDepsIds保存在depIds上，然后清空newDepIds
     this.newDepIds = tmp
     this.newDepIds.clear()
     tmp = this.deps
@@ -215,7 +215,7 @@ export default class Watcher {
   /**
    * Depend on all deps collected by this watcher.
    */
-  depend () {
+  depend () { // computed 的时候执行上一个 deps 的depend
     let i = this.deps.length
     while (i--) {
       this.deps[i].depend()
